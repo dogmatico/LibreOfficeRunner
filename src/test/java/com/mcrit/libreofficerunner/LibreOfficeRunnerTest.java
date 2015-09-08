@@ -5,7 +5,16 @@
  */
 package com.mcrit.libreofficerunner;
 
-import javax.json.JsonObject;
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.PrintStream;
+import java.io.StringReader;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.json.Json;
+import javax.json.JsonReader;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -18,12 +27,15 @@ import static org.junit.Assert.*;
  * @author mcrituser
  */
 public class LibreOfficeRunnerTest {
+    private final ByteArrayOutputStream outContent = new ByteArrayOutputStream(); 
     
     public LibreOfficeRunnerTest() {
+        
     }
     
     @BeforeClass
-    public static void setUpClass() {
+    public static void setUpClass() { 
+        
     }
     
     @AfterClass
@@ -32,47 +44,43 @@ public class LibreOfficeRunnerTest {
     
     @Before
     public void setUp() {
+        System.setOut(new PrintStream(outContent));
     }
     
     @After
     public void tearDown() {
+        System.setOut(null);
+    }
+
+    @Test
+    public void compileTemplate() throws FileNotFoundException {
+         
     }
 
     /**
-     * Test of recalculateXLXSFile method, of class LibreOfficeRunner.
+     * Test of recalculateFile method, of class LibreOfficeRunner.
      */
-    @org.junit.Test
-    public void testRecalculateXLXSFile() throws Exception {
-        System.out.println("recalculateXLXSFile");
+    /*@Test
+    public void testRecalculateFile() throws Exception {
+        System.out.println("recalculateFile");
         String filePath = "";
-        LibreOfficeRunner.recalculateXLXSFile(filePath);
+        LibreOfficeRunner instance = null;
+        instance.recalculateFile(filePath);
         // TODO review the generated test code and remove the default call to fail.
         fail("The test case is a prototype.");
-    }
+    }*/
 
     /**
      * Test of compileTemplate method, of class LibreOfficeRunner.
+     * @throws java.lang.Exception
      */
-    @org.junit.Test
-    public void testCompileTemplate() {
-        System.out.println("compileTemplate");
-        String templateURL = "";
-        JsonObject cellData = null;
-        LibreOfficeRunner.compileTemplate(templateURL, cellData);
-        // TODO review the generated test code and remove the default call to fail.
-        fail("The test case is a prototype.");
-    }
+    @Test
+    public void testCompileTemplate() throws Exception {
+        LibreOfficeRunner instance = new LibreOfficeRunner("uno:socket,host=localhost,port=2002;urp;StarOffice.ServiceManager");
+        
+        JsonReader jsonReader = Json.createReader(new StringReader("[ {\"target\" : [ 0, [0, 0]], \"data\": [[1, 2], [3,4]]}]"));
 
-    /**
-     * Test of main method, of class LibreOfficeRunner.
-     */
-    @org.junit.Test
-    public void testMain() throws Exception {
-        System.out.println("main");
-        String[] args = null;
-        LibreOfficeRunner.main(args);
-        // TODO review the generated test code and remove the default call to fail.
-        fail("The test case is a prototype.");
+        instance.compileTemplate("/home/mcrituser/test.ods", ".csv", jsonReader.readArray()); 
+        assertEquals("The compiled template is doen't match the given JSON input.", "1,2\n3,4\n", outContent.toString());
     }
-    
 }

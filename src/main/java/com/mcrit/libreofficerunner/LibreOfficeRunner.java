@@ -35,10 +35,16 @@ import com.sun.star.io.BufferSizeExceededException;
 import com.sun.star.io.NotConnectedException;
 import com.sun.star.io.XOutputStream;
 
+import com.sun.star.sheet.XSpreadsheetDocument;
+import com.sun.star.sheet.XSpreadsheets;
+import com.sun.star.sheet.XSpreadsheet;
+import com.sun.star.container.XIndexAccess;
+import com.sun.star.lang.WrappedTargetException;
+
 import javax.json.Json;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
-import javax.json.JsonWriter;
+import javax.json.JsonReader;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -46,6 +52,9 @@ import java.util.regex.Pattern;
 import java.io.ByteArrayOutputStream;
 import java.io.*;
 import java.lang.*;
+import java.util.Iterator;
+import javax.json.JsonArray;
+import javax.json.JsonValue;
 
 /**
  * Class used to do all recalculation using LibreOffice UNO API
@@ -82,18 +91,18 @@ public class LibreOfficeRunner {
         XUnoUrlResolver xUrlResolver =
             (XUnoUrlResolver) UnoRuntime.queryInterface( XUnoUrlResolver.class, urlResolver );
         // Import the object
-        LibreOfficeRunner.rInitialObject = xUrlResolver.resolve(serviceURL);
+        rInitialObject = xUrlResolver.resolve(serviceURL);
 
         // XComponentContext
         if( null == rInitialObject ) {
             throw new RuntimeException("Unable to get Initial context");
         } else {
-            LibreOfficeRunner.xOfficeFactory = (XMultiComponentFactory) UnoRuntime.queryInterface(
+            xOfficeFactory = (XMultiComponentFactory) UnoRuntime.queryInterface(
                 XMultiComponentFactory.class, rInitialObject);
                 
-            LibreOfficeRunner.desktop = xOfficeFactory.createInstanceWithContext(
+            desktop = xOfficeFactory.createInstanceWithContext(
                         "com.sun.star.frame.Desktop", xLocalContext);
-            LibreOfficeRunner.xDesktop = (XDesktop)UnoRuntime.queryInterface(XDesktop.class, desktop);
+            xDesktop = (XDesktop)UnoRuntime.queryInterface(XDesktop.class, desktop);
         }
     }
     
@@ -103,6 +112,9 @@ public class LibreOfficeRunner {
         String filterName;
         if (match.find()) {
             switch (match.group(1)) {
+                case "csv":
+                    filterName = "Text - txt - csv (StarCalc)";
+                    break;
                 case "xlsx":
                     filterName = "Calc Office Open XML";
                     break;
@@ -223,7 +235,7 @@ public class LibreOfficeRunner {
     private void loadFileFromURL(String filePath, keyValue[] additionalProps) throws IOException, com.sun.star.lang.IllegalArgumentException {
         XComponentLoader xComponentLoader;      
         xComponentLoader = (XComponentLoader)UnoRuntime.queryInterface(
-                XComponentLoader.class, LibreOfficeRunner.desktop);
+                XComponentLoader.class, desktop);
         
         PropertyValue[] propertiesLoader = createLoaderProperties(filePath, additionalProps);
         
@@ -250,12 +262,12 @@ public class LibreOfficeRunner {
     
     /**
      *
-     * @param filePath
+     * @param filePath 
      * @throws IOException
      * @throws CloseVetoException
      * @throws com.sun.star.lang.IllegalArgumentException
      */
-    public void recalculateXLXSFile(String filePath) throws IOException, CloseVetoException, com.sun.star.lang.IllegalArgumentException {
+    public void recalculateFile(String filePath) throws IOException, CloseVetoException, com.sun.star.lang.IllegalArgumentException {
      
         keyValue[] propertiesLoader = new keyValue[1];
         propertiesLoader[0].Name = "Overwrite";
@@ -267,31 +279,60 @@ public class LibreOfficeRunner {
     }
     
     /**
-     *
-     * @param templateURL
-     * @param cellData
+     * Compiles a XLS file using a template file and JSON data and streams it to stdout
+     * @param cellData, JSON array. Used to fill the template:The structure
+     *   is:
+     *      [ {target : [
+     *          sheetNumber,
+     *          Upper Left coordinate [X, Y]
+     *        ],
+     *        data: [[]] ==> Matrix in standard notation rows, columns
+     *       }]
+     * @throws com.sun.star.lang.IllegalArgumentException
+     * @throws com.sun.star.lang.IndexOutOfBoundsException
+     * @throws com.sun.star.lang.WrappedTargetException
      */
-    public static void compileTemplate(String templateURL, JsonObject cellData ) {
+    private void compileTemplate(JsonArray cellData) throws com.sun.star.lang.IllegalArgumentException, com.sun.star.lang.IndexOutOfBoundsException, WrappedTargetException {
+        XSpreadsheetDocument xSpreadsheetDocument;
+                
+        // Import interface;
+        xSpreadsheetDocument = (XSpreadsheetDocument) UnoRuntime.queryInterface(
+                XSpreadsheetDocument.class, document);
         
+        for (int i = 0, ln = cellData.size(); i < ln; i += 1) {
+            JsonObject sheet = cellData.getJsonObject(i);
+            JsonArray target = sheet.getJsonArray("target");
+            JsonArray data = sheet.getJsonArray("data");
+            
+            XSpreadsheets xSheets = xSpreadsheetDocument.getSheets();
+            
+            XIndexAccess xSheetsByIndex = (XIndexAccess) UnoRuntime.queryInterface(
+                XIndexAccess.class, xSheets);
+            
+            XSpreadsheet xSheet = UnoRuntime.queryInterface(
+               com.sun.star.sheet.XSpreadsheet.class, xSheetsByIndex.getByIndex(target.getInt(0)));
+            
+            for (int j = 0, ln2 = data.size(); j < ln2; j += 1) {
+                for (int k = 0, ln3 = data.getJsonArray(j).size(); k < ln3; k += 1) {
+                    xSheet.getCellByPosition(target.getJsonArray(1).getInt(0) + k, target.getJsonArray(1).getInt(1) + j).setValue(data.getJsonArray(j).getJsonNumber(k).doubleValue());
+                }
+            }
+        }
     }
     
     /**
      *
+     * @param templatePath
+     * @param outputExtension
+     * @param data
      * @param args
      * @throws java.lang.Exception
      */
     
-    
-    
-    public static void main(String[] args) throws java.lang.Exception {
-        LibreOfficeRunner instance;
-        instance = new LibreOfficeRunner("uno:socket,host=localhost,port=2002;urp;StarOffice.ServiceManager");
-        
-        keyValue[] properties = new keyValue[0];
-        instance.loadFileFromURL("/home/mcrituser/test.ods", properties);
-        System.setOut(new PrintStream(new BufferedOutputStream(new FileOutputStream("test.xls")), true));
-        instance.streamDocumentToStdout(".xls");
-        instance.closeDocument();
-        System.exit(0);
+    public void compileTemplate(String templatePath, String outputExtension, JsonArray data) throws java.lang.Exception {
+        loadFileFromURL(templatePath, new keyValue[0]);
+        compileTemplate(data);
+        streamDocumentToStdout(outputExtension);
+        closeDocument();
     }
 }
