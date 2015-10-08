@@ -41,20 +41,18 @@ import com.sun.star.sheet.XSpreadsheet;
 import com.sun.star.container.XIndexAccess;
 import com.sun.star.lang.WrappedTargetException;
 
-import javax.json.Json;
 import javax.json.JsonObject;
-import javax.json.JsonObjectBuilder;
-import javax.json.JsonReader;
+
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import java.io.ByteArrayOutputStream;
-import java.io.*;
-import java.lang.*;
-import java.util.Iterator;
+import java.io.StringReader;
+import javax.json.Json;
 import javax.json.JsonArray;
-import javax.json.JsonValue;
+import javax.json.JsonReader;
+
 
 /**
  * Class used to do all recalculation using LibreOffice UNO API
@@ -321,18 +319,26 @@ public class LibreOfficeRunner {
     }
     
     /**
-     *
-     * @param templatePath
-     * @param outputExtension
-     * @param data
-     * @param args
-     * @throws java.lang.Exception
+     * Opens a template file and fills the cells with data from a JSON Array.
+     * @param serviceURL String to with serviceURL to call a method
+     * @param templatePath: URL of the template
+     * @param outputExtension: Extension of the output (must include the dot (.) )
+     * @param JSONString: A JSON string Array with the new data. The structure is:
+     *      [ {target : [
+     *          sheetNumber,
+     *          Upper Left coordinate [X, Y]
+     *        ],
+     *        data: [[]] ==> Matrix in standard notation rows, columns
+     *       }]
+     * @throws Exception
      */
-    
-    public void compileTemplate(String templatePath, String outputExtension, JsonArray data) throws java.lang.Exception {
-        loadFileFromURL(templatePath, new keyValue[0]);
-        compileTemplate(data);
-        streamDocumentToStdout(outputExtension);
-        closeDocument();
+    static public void compileTemplate(String serviceURL, String templatePath, String outputExtension, String JSONString) throws java.lang.Exception {
+        JsonReader jsonReader = Json.createReader(new StringReader(JSONString));
+        LibreOfficeRunner instance = new LibreOfficeRunner(serviceURL);
+        instance.loadFileFromURL(templatePath, new keyValue[0]);
+        instance.compileTemplate(jsonReader.readArray());
+        instance.recalculateAll();
+        instance.streamDocumentToStdout(outputExtension);
+        instance.closeDocument();
     }
 }

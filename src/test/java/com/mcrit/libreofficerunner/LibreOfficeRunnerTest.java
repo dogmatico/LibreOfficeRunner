@@ -76,11 +76,8 @@ public class LibreOfficeRunnerTest {
      */
     @Test
     public void testCompileTemplate() throws Exception {
-        LibreOfficeRunner instance = new LibreOfficeRunner("uno:socket,host=localhost,port=2002;urp;StarOffice.ServiceManager");
         
-        JsonReader jsonReader = Json.createReader(new StringReader("[ {\"target\" : [ 0, [0, 0]], \"data\": [[1, 2], [3,4]]}]"));
-
-        instance.compileTemplate("/home/mcrituser/test.ods", ".csv", jsonReader.readArray()); 
+        LibreOfficeRunner.compileTemplate("uno:socket,host=localhost,port=2002;urp;StarOffice.ServiceManager", "/home/mcrituser/test.ods", ".csv", "[ {\"target\" : [ 0, [0, 0]], \"data\": [[1, 2], [3,4]]}]"); 
         assertEquals("The compiled template is doen't match the given JSON input.", "1,2\n3,4\n", outContent.toString());
     }
 }
