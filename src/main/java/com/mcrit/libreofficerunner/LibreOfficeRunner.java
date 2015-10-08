@@ -292,21 +292,20 @@ public class LibreOfficeRunner {
      */
     private void compileTemplate(JsonArray cellData) throws com.sun.star.lang.IllegalArgumentException, com.sun.star.lang.IndexOutOfBoundsException, WrappedTargetException {
         XSpreadsheetDocument xSpreadsheetDocument;
-                
+         XSpreadsheets xSheets;       
         // Import interface;
         xSpreadsheetDocument = (XSpreadsheetDocument) UnoRuntime.queryInterface(
                 XSpreadsheetDocument.class, document);
         
+        xSheets = xSpreadsheetDocument.getSheets();
+            
+            XIndexAccess xSheetsByIndex = (XIndexAccess) UnoRuntime.queryInterface(
+                XIndexAccess.class, xSheets);
         for (int i = 0, ln = cellData.size(); i < ln; i += 1) {
             JsonObject sheet = cellData.getJsonObject(i);
             JsonArray target = sheet.getJsonArray("target");
             JsonArray data = sheet.getJsonArray("data");
-            
-            XSpreadsheets xSheets = xSpreadsheetDocument.getSheets();
-            
-            XIndexAccess xSheetsByIndex = (XIndexAccess) UnoRuntime.queryInterface(
-                XIndexAccess.class, xSheets);
-            
+   
             XSpreadsheet xSheet = UnoRuntime.queryInterface(
                com.sun.star.sheet.XSpreadsheet.class, xSheetsByIndex.getByIndex(target.getInt(0)));
             
