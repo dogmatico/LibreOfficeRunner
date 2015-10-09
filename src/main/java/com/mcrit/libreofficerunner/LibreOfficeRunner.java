@@ -40,6 +40,8 @@ import com.sun.star.sheet.XSpreadsheets;
 import com.sun.star.sheet.XSpreadsheet;
 import com.sun.star.container.XIndexAccess;
 import com.sun.star.lang.WrappedTargetException;
+import com.sun.star.text.XText;
+import com.sun.star.text.XTextCursor;
 
 import javax.json.JsonObject;
 
@@ -276,6 +278,7 @@ public class LibreOfficeRunner {
         closeDocument();              
     }
     
+    
     /**
      * Compiles a XLS file using a template file and JSON data and streams it to stdout
      * @param cellData, JSON array. Used to fill the template:The structure
@@ -311,7 +314,15 @@ public class LibreOfficeRunner {
             
             for (int j = 0, ln2 = data.size(); j < ln2; j += 1) {
                 for (int k = 0, ln3 = data.getJsonArray(j).size(); k < ln3; k += 1) {
-                    xSheet.getCellByPosition(target.getJsonArray(1).getInt(0) + k, target.getJsonArray(1).getInt(1) + j).setValue(data.getJsonArray(j).getJsonNumber(k).doubleValue());
+                    try {
+                        xSheet.getCellByPosition(target.getJsonArray(1).getInt(0) + k, target.getJsonArray(1).getInt(1) + j).setValue(data.getJsonArray(j).getJsonNumber(k).doubleValue());
+                    }
+                    catch (ClassCastException ex) {
+                        XText xText = (XText) UnoRuntime.queryInterface(
+                                com.sun.star.text.XText.class, xSheet.getCellByPosition(target.getJsonArray(1).getInt(0) + k, target.getJsonArray(1).getInt(1) + j));
+                        XTextCursor textCursor = xText.createTextCursor();
+                        xText.insertString(textCursor, data.getJsonArray(j).getString(k), true);
+                    }
                 }
             }
         }
