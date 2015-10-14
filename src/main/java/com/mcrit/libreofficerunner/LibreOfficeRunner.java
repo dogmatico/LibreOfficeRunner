@@ -116,7 +116,7 @@ public class LibreOfficeRunner {
                     filterName = "Text - txt - csv (StarCalc)";
                     break;
                 case "xlsx":
-                    filterName = "Calc Office Open XML";
+                    filterName = "Calc MS Excel 2007 XML";
                     break;
                 case "xls":
                     filterName = "MS Excel 97";
